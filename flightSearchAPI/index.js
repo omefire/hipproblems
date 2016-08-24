@@ -7,15 +7,26 @@ const FLIGHT_SEARCH_PORT = 8080;
 
 const PORT = "9000";
 const SERVER = "localhost";
-const PROVIDERS = ['Expedia', 'Orbitz', 'Priceline', 'Travelocity', 'United'];
 
 dispatcher.onGet("/flights/search", function (req, res) {
-    var api = new FlightSearchAPI(SERVER, PORT, PROVIDERS);
-    var results = api.search();
+    
+    // Perform the search against all providers using our API
+    var api = new FlightSearchAPI(SERVER, PORT);
+    var searchResult = api.search();
 
-    results.then(function(result) {
+    searchResult.then(function(result) {
+        // Make sure that everything is sorted correctly
+        /*for(var i = 1; i < result.length; i++) {
+            if(result[i].agony < result[i-1].agony) {
+                throw new Error("Not sorted correctly!");
+            }
+        }*/
+
+        // Transform the array we get back into JSON and send it to the client
         res.writeHead(200, { 'Content-Type': 'text/json' });
         res.end(JSON.stringify(result));
+    }).fail(function(err) {
+        console.log("Error: " + err);
     });
 });
 

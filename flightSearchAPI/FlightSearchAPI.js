@@ -3,58 +3,39 @@
 var http = require('http');
 var Q = require('q');
 
-// ToDO: 
+// ToDO: Do not hardcode these values
+// ... Maybe, retrieve them from a DB table or a config file or something
+const PROVIDERS = ['Expedia', 'Orbitz', 'Priceline', 'Travelocity', 'United'];
+
+// Task List: 
 // - Query all providers and return a merged result:
 //      * search all providers (done)
 //      * sort results by agony (done)
 //      * merge sorted results (done)
 //      * results returned by the scraper API are already sorted by agony
 //      * expose new API via one endpoint: GET /flights/search (done)
-//      * Exception Handling + Edge cases Handling
+//      * exception handling + edge cases handling
 
-function FlightSearchAPI(server, port, providers) {
+function FlightSearchAPI(server, port) {
     this.server = server;
     this.port = port;
-    this.providers = providers;
 }
 
 FlightSearchAPI.prototype.search = function () {
+
     var self = this;
 
-    var searchProvider = function (provider) {
-        var deferred = Q.defer();
-        http.get({
-            host: self.server,
-            port: self.port,
-            path: "/scrapers/" + provider
-        }, function (resp) {
-            resp.setEncoding();
-            var searchResult = "";
-            resp.on("data", function (data) {
-                searchResult += data;
-            });
-            resp.on("end", function () {
-                var r = searchResult;
-                deferred.resolve(JSON.parse(searchResult));
-            })
-        }).on("error", function (e) {
-            deferred.reject(e); // ToDO: Test this!    
-        });
-
-        return deferred.promise;
-    }
-
-    // ToDO: better name
-    var promises = this.providers.map(function (provider) {
-        return searchProvider(provider);
+    // Query all providers concurrently (using Q.allSettled), because doing this serially would be too slow
+    var promises = PROVIDERS.map(function (provider) {
+        return queryProvider(self.server, self.port, provider);
     });
 
-    // Send queries to the endpoint concurrently
     return Q.allSettled(promises).then(function (results) {
-        // If any provider errored out, stop computing
+
+        // If there is an error querying any provider, stop processing and error out
         results.forEach(function (res) {
             if (res.state !== "fulfilled") {
-                throw new Error(""); //ToDO: Test this!
+                throw new Error("There was an error querying one of the providers"); 
             }
         });
 
@@ -62,18 +43,42 @@ FlightSearchAPI.prototype.search = function () {
             return result.value;
         });
     }).then(function (scraperResults) {
-        // We need to sort the scraper results
-        //return mergeSort(scraperResults);
-        // ToDO: Test with 1 elt, 2 elts, 3 elts, multiple elts
-        return scraperResults.map(function(elt) {
+        return scraperResults.map(function (elt) {
             return elt.results;
         }).reduce(function (sortedSoFar, toBeSorted) {
-            return mergeSort(sortedSoFar, toBeSorted);
+            return merge(sortedSoFar, toBeSorted);
         });
+    }).fail(function(err) {
+        throw new Error(err);
     });
 };
 
-function mergeSort(left, right) {
+// Queries a provider and returns a promise that will be 
+// fulfilled with the provider's results
+function queryProvider(server, port, provider) {
+    var deferred = Q.defer();
+    http.get({
+        host: server,
+        port: port,
+        path: "/scrapers/" + provider
+    }, function (resp) {
+        resp.setEncoding();
+        var searchResult = "";
+        resp.on("data", function (data) {
+            searchResult += data;
+        });
+        resp.on("end", function () {
+            deferred.resolve(JSON.parse(searchResult));
+        })
+    }).on("error", function (e) {
+        deferred.reject(e); 
+    });
+
+    return deferred.promise;
+}
+
+// Merge two sorted lists of results gotten back from providers
+function merge(left, right) {
     var result = [];
     var leftIndex = 0;
     var rightIndex = 0;
@@ -97,17 +102,6 @@ function mergeSort(left, right) {
     }
 
     return result;
-
-    /*if(scraperResults.length <= 1) {
-        return scraperResults;
-    }
-    var result = [];
-
-    // Merge the first 2 arrays
-    var cum = mergeSortTwoArrays(scraperResults[0], scraperResults[1]);
-    return scraperResults.reduce(mergeSortTwoArrays);
-    //A, B, C, D, E*/
-
 }
 
 module.exports = FlightSearchAPI;
