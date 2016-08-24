@@ -1,0 +1,19 @@
+{
+  "name": "FlightSearchAPI",
+  "version": "0.0.1",
+  "description": "Hipmunk Flight Search API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "httpdispatcher": "^1.0.0",
+    "q": "1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/omefire/hipproblems"
+  },
+  "author": "Omar Mefire",
+  "license": "MIT"
+}
