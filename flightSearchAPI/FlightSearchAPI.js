@@ -14,7 +14,7 @@ const PROVIDERS = ['Expedia', 'Orbitz', 'Priceline', 'Travelocity', 'United'];
 //      * merge sorted results (done)
 //      * results returned by the scraper API are already sorted by agony
 //      * expose new API via one endpoint: GET /flights/search (done)
-//      * exception handling + edge cases handling
+//      * exception handling + edge cases handling (done)
 
 function FlightSearchAPI(server, port) {
     this.server = server;
